@@ -1,0 +1,124 @@
+contract Dicae =
+	
+	record bet = {
+			id: int,
+			number: int,
+			player_address: address
+		}
+
+	record session = {
+			session_id: int,
+			block_id: int,
+			bets: list(bet),
+			calculated: bool
+		}
+
+	record state = {
+			sessions: list(session),
+			bet_price: int,
+			bet_id: int,
+			session_id: int
+		}
+
+	record player = {
+			total_bets: int,
+			pending_balance: int
+		} 
+
+	public stateful function init() = {
+				bet_id = 0,
+				session_id = 0,
+				bet_price = 1,
+				bet_winning_coeficient = 5,
+				sessions = [{session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}],
+				players = map(address, player)
+		}
+
+	private stateful function reset_session() : bool =
+		calculate_session_results()
+		if (Chain.block_height >= state.sessions[state.session_id].block_id + 5)
+			put(state{ session_id = state.session_id + 1})
+			true
+		else
+			false	
+
+	private stateful function is_player() : bool =
+		let player_found = lookupByAddress(Call.origin, state.players, {total_bets = 0, pending_balance = 0})
+		if (player_found.total_bets == 0)
+			put(state{
+				players[Call.origin] = {total_bets = 0, pending_balance = 0}
+			})
+		
+		true
+
+	private function lookupByAddress(k : address, m, v) =
+                 switch(Map.lookup(k,m))
+	                 None => v
+                         Some(x) => x
+
+	public stateful bet(number: int) : bool =
+		if(reset_session() && Call.value >= state.bet_price && is_player())	
+			let bet = {
+				id = state.bet_id +1, 
+				number = number,
+				player_address = Call.caller,
+			}
+			put(state{
+				state.bet_id = bet.id
+				state.sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets
+				state.players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1
+			})
+
+			true
+		else 
+			false
+
+	private function random() : int = 
+		let temp_last_block_height = Chain.block_height
+	
+		let fifth_last_block = Chain.block_hash(temp_last_block_height - 5)
+		let fourth_last_block = Chain.block_hash(temp_last_block_height - 4)
+		let third_last_block = Chain.block_hash(temp_last_block_height - 3)
+		let second_last_block = Chain.block_hash(temp_last_block_height - 2)
+		let first_last_block = Chain.block_hash(temp_last_block_height - 1)
+
+		let concat_block_hashes = String.concat(fifth_last_block, fourth_last_block, third_last_block, second_last_block, first_last_block)
+		
+		String.sha3(concat_block_hashes) mod 6
+	
+	private stateful calculate_session_results() : bool = 
+		let random_winning_number = random()
+
+		// get winning bets and increase player balances for the current session
+		let winning_bets = map(filter_winning(bet,random_winning_number),state.sessions[state.session_id].bets)
+		
+		true
+
+
+	private stateful function filter_wining(bet: bet, random_winning_number: int) : bool =
+		if (bet.number == random_winning_number)
+			put(state{
+				state.players[bet.player].pending_balance = state.players[bet.player].pending_balance + (state.bet_price * state.bet_winning_coeficient)
+			})
+			true
+		else
+			false
+
+
+	private function map(f : 'a => 'b, l : list('a)) : list('b) =
+   		switch(l)
+   	  		[] => []
+			e :: l' => f(e) :: map(f, l')		
+
+	public stateful withdraw() : bool =
+		if(state.players[Call.caller].pending_balance > 0)
+			let balance_for_withdraw = state.players[Call.caller].pending_balance
+			put(state{
+				state.players[Call.caller].pending_balance = 0
+			})
+			Chain.spend(Call.caller, balance_for_withdraw)
+
+			true
+		else
+			false
+		 
