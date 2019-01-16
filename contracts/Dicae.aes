@@ -85,6 +85,8 @@ contract Dicae =
         let concat_block_hashes_pair_third = String.concat(concat_block_hashes_pair_first, concat_block_hashes_pair_second)
         let concat_block_hashes = String.concat(Int.to_str(first_last_block), concat_block_hashes_pair_third)
         String.sha3(concat_block_hashes) mod 6
+
+    public function get_random() : int = random()
     
     private stateful function calculate_session_results() : bool = 
         let random_winning_number = random()

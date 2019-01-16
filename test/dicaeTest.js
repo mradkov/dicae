@@ -74,7 +74,7 @@ describe('Dicae Contract', () => {
   it('should place bet correctly', async () => {
     let number = 5;
     
-    const bet = await owner.contractCall(compiledContract.bytecode, 'sophia', contractInstance.address, "bet", {
+    const contractCall = await owner.contractCall(compiledContract.bytecode, 'sophia', contractInstance.address, "bet", {
       args: `(${number})`,
       options: {
         amount: 1000000000000000000,
@@ -83,8 +83,23 @@ describe('Dicae Contract', () => {
       abi: "sophia"
     })
 
-    const betResult = await bet.decode('bool');
-    assert.equal(betResult.value, true, "It doesnt bet properly");
+    const contractCallResult = await contractCall.decode('bool');
+    assert.equal(contractCallResult.value, true, "It doesnt bet properly");
+  })
+
+  it('should return random number between 1 and 6', async () => {
+    let possibleOutputs = [0,1,2,3,4,5];
+
+    const contractCall = await owner.contractCall(compiledContract.bytecode, 'sophia', contractInstance.address, "get_random", {
+      args: `()`,
+      options: {
+        ttl: config.ttl
+      },
+      abi: "sophia"
+    })
+
+    const contractCallResult = await contractCall.decode('int');
+    assert.equal(possibleOutputs.indexOf(contractCallResult.value) > -1, true, "It doesnt return random number between 1 and 6");
   })
 
 })
