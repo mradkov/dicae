@@ -13,25 +13,27 @@ contract Dicae =
 			calculated: bool
 		}
 
-	record state = {
-			sessions: list(session),
-			bet_price: int,
-			bet_id: int,
-			session_id: int
-		}
-
 	record player = {
 			total_bets: int,
 			pending_balance: int
-		} 
+		}
 
+	record state = {
+			sessions: map(int, session),
+			bet_price: int,
+			bet_id: int,
+			bet_winning_coeficient: int,
+			session_id: int,
+			players: map(address, player) 
+		}
+	
 	public stateful function init() = {
 			bet_id = 0,
 			session_id = 0,
 			bet_price = 1,
 			bet_winning_coeficient = 5,
-			sessions = [{session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}],
-			players = map(address, player)
+			sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}},
+			players = {}
 		}
 
 	private stateful function reset_session() : bool =
@@ -74,28 +76,30 @@ contract Dicae =
 		let third_last_block = Chain.block_hash(temp_last_block_height - 3)
 		let second_last_block = Chain.block_hash(temp_last_block_height - 2)
 		let first_last_block = Chain.block_hash(temp_last_block_height - 1)
-		let concat_block_hashes = String.concat(fifth_last_block, fourth_last_block, third_last_block, second_last_block, first_last_block)
+		let concat_block_hashes_pair_first = String.concat(Int.to_str(fifth_last_block), Int.to_str(fourth_last_block))
+		let concat_block_hashes_pair_second = String.concat(Int.to_str(third_last_block), Int.to_str(second_last_block))
+		let concat_block_hashes_pair_third = String.concat(concat_block_hashes_pair_first, concat_block_hashes_pair_second)
+		let concat_block_hashes = String.concat(Int.to_str(first_last_block), concat_block_hashes_pair_third)
 		String.sha3(concat_block_hashes) mod 6
 	
 	private stateful function calculate_session_results() : bool = 
 		let random_winning_number = random()
-		let winning_bets = map(filter_winning(bet,random_winning_number),state.sessions[state.session_id].bets)
+		let bets : list(bet) = state.sessions[state.session_id].bets
+		let winning_bets = map_function(filter_winning(random_winning_number), bets)
 		true
 
-
-	private stateful function filter_wining(bet: bet, random_winning_number: int) : bool =
+	private stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
 		if (bet.number == random_winning_number)
 			put(state{
-				players[bet.player].pending_balance = state.players[bet.player].pending_balance + (state.bet_price * state.bet_winning_coeficient) })
+				players[bet.player_address].pending_balance = state.players[bet.player_address].pending_balance + (state.bet_price * state.bet_winning_coeficient) })
 			true
 		else
 			false
 
-
-	private function map(f : 'a => 'b, l : list('a)) : list('b) =
+	private function map_function(f : 'a => 'b, l : list('a)) : list('b) =
 		switch(l)
 			[] => []
-			e :: l' => f(e) :: map(f, l')		
+			e :: l' => f(e) :: map_function(f, l')		
 
 	public stateful function withdraw() : bool =
 		if(state.players[Call.caller].pending_balance > 0)
@@ -106,4 +110,3 @@ contract Dicae =
 			true
 		else
 			false
-		 
