@@ -40,10 +40,9 @@ contract Dicae =
         calculate_session_results()
         put(state{ session_id = state.session_id + 1})
 
-    private stateful function reset_session_if_needed() : bool =
+    private stateful function reset_session_if_needed() =
         if (Chain.block_height >= state.sessions[state.session_id].block_id + 5)
             reset_session()
-        true
 
     private stateful function is_player() =
         let player_found = lookupByAddress(Call.origin, state.players, {total_bets = 0, pending_balance = 0})
@@ -59,7 +58,7 @@ contract Dicae =
         if (Call.value < state.bet_price)
             abort("Insufficient AE amount")
 
-    public stateful function bet(number: int) : bool =
+    public stateful function bet(number: int) =
         reset_session_if_needed()
         is_amount_enough()
         is_player()
@@ -71,7 +70,6 @@ contract Dicae =
             bet_id = bet.id,
             sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets,
             players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
-        true
 
     private function random() : int = 
         let temp_last_block_height = Chain.block_height
@@ -107,12 +105,9 @@ contract Dicae =
             [] => []
             e :: l' => f(e) :: map_function(f, l')		
 
-    public stateful function withdraw() : bool =
+    public stateful function withdraw() =
         if(state.players[Call.caller].pending_balance > 0)
             let balance_for_withdraw = state.players[Call.caller].pending_balance
             put(state{
                 players[Call.caller].pending_balance = 0 })
             Chain.spend(Call.caller, balance_for_withdraw)
-            true
-        else
-            false
