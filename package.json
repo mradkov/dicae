@@ -1,12 +1,12 @@
 {
-  "name": "forgae-sample",
+  "name": "dicae",
   "version": "1.0.0",
-  "description": "This is the default package.json generated for your project",
+  "description": "Dicae is an Aeternity Blockchain betting game",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Milen Radkov <milenradkov@me.com>",
   "license": "ISC",
   "dependencies": {
     "@aeternity/aepp-sdk": "1.0.1",
