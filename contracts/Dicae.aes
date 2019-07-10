@@ -1,3 +1,25 @@
+// ISC License
+//
+// Copyright (c) 2017, Milen Radkov <milenradkov@me.com>
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+// REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+// AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+// INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+// LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+// OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+// PERFORMANCE OF THIS SOFTWARE.
+//
+// THIS IS NOT SECURITY AUDITED
+// DO NEVER USE THIS WITHOUT SECURITY AUDIT FIRST
+//
+// Dicæ is a betting game on top of Æternity blockchain, implemented with Sophia ML  
+
+
 contract Dicae =
     
     record bet = { id: int
@@ -17,16 +39,18 @@ contract Dicae =
                    , bet_id: int
                    , bet_winning_coeficient: int
                    , session_id: int
-                   , players: map(address, player) }
+                   , players: map(address, player)
+                   , null_bytes: bytes(32) }
     
-    public stateful function init() : state = { bet_id = 0
+    stateful entrypoint init() : state = { bet_id = 0
                                       , session_id = 0
                                       , bet_price = 1
                                       , bet_winning_coeficient = 5
                                       , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
-                                      , players = {} }
+                                      , players = {}
+                                      , null_bytes = #000000000000000000000000000000000000000000000000000000000000000 }
 
-    public stateful function bet(number: int) =
+    stateful entrypoint bet(number: int) =
         reset_session_if_needed()
         is_amount_enough()
         is_player()
@@ -39,9 +63,9 @@ contract Dicae =
             sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets,
             players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
 
-    public function get_random() : int = random()
+    entrypoint get_random() : int = random()
 
-    public stateful function withdraw() =
+    stateful entrypoint withdraw() =
         if(state.players[Call.caller].pending_balance > 0)
             let balance_for_withdraw = state.players[Call.caller].pending_balance
             put(state{
@@ -49,11 +73,10 @@ contract Dicae =
             Chain.spend(Call.caller, balance_for_withdraw)
 
     // Private and helper functions
-    private stateful function calculate_session_results() : bool = 
+    private stateful function calculate_session_results() = 
         let random_winning_number = random()
         let bets : list(bet) = state.sessions[state.session_id].bets
-        let winning_bets = map_function(filter_winning(random_winning_number), bets)
-        true
+        map_function(filter_winning(random_winning_number), bets)
 
     private stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
         if (bet.number == random_winning_number)
@@ -68,13 +91,19 @@ contract Dicae =
             [] => []
             e :: l' => f(e) :: map_function(f, l')	
 
-    private function random() : int =
-      (calculate_random(Chain.block_height, 5, 0) mod 6)
+    private function random() : int = 
+        let rand_hash = random_hash(5, state.null_bytes)
+        Bytes.to_int(Crypto.sha3(rand_hash)) mod 6
+
+    private function random_hash(blocks: int, result: bytes(32)) : bytes(32) =
+        switch(blocks)
+            0 => result
+            _ => random_hash(blocks - 1, Crypto.sha3(String.concat(Bytes.to_str(result), Bytes.to_str(eval(Chain.block_hash(Chain.block_height - blocks))))))
         
-    private function calculate_random(height: int, count: int, rand: int) : int =
-      switch(count)
-            0 => rand
-            _ => calculate_random(height - 1, count - 1, String.sha3(String.concat(Int.to_str(rand) + Int.to_str(Chain.block_hash(height))))
+    private function eval(x: option(bytes(32))) : bytes(32) =
+        switch(x)
+            None => state.null_bytes
+            Some(x) => x
 
     private stateful function reset_session() =
         calculate_session_results()
