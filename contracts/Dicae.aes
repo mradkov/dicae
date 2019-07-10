@@ -75,7 +75,8 @@ contract Dicae =
             players[Call.caller].pending_balance = 0 })
         Chain.spend(Call.caller, balance_for_withdraw)
 
-    // Private and helper functions
+    // PRIVATE FUNCTIONS AND ACCESS MODIFIERS
+    
     private stateful function calculate_session_results() = 
         map_function(filter_winning(random()), state.sessions[state.session_id].bets)
 
