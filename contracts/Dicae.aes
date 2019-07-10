@@ -21,6 +21,14 @@
 
 
 contract Dicae =
+
+    record state = { sessions: map(int, session)
+                   , bet_price: int
+                   , bet_id: int
+                   , bet_winning_coeficient: int
+                   , session_id: int
+                   , players: map(address, player)
+                   , system: system }
     
     record bet = { id: int
                  , number: int
@@ -34,14 +42,6 @@ contract Dicae =
     record player = { total_bets: int
                     , pending_balance: int }
 
-    record state = { sessions: map(int, session)
-                   , bet_price: int
-                   , bet_id: int
-                   , bet_winning_coeficient: int
-                   , session_id: int
-                   , players: map(address, player)
-                   , system: system }
-    
     record system = { null_bytes: bytes(32)
                     , valid_bets: map(int, int) }
     
