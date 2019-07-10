@@ -68,6 +68,7 @@ contract Dicae =
 
     stateful entrypoint bet(number: int) =
         is_bet_valid(number)
+        is_player_session_bet_allowed()
         reset_session_if_needed()
         is_amount_enough()
         is_player()
@@ -137,3 +138,23 @@ contract Dicae =
     
     private function is_bet_valid(number: int) =
         require(Map.member(number, state.system.valid_bets), "INVALID_BET_NUMBER")
+
+    private function is_player_session_bet_allowed() =
+        let result =
+            switch(filter((bet) => (is_player_betted(bet)), state.sessions[state.session_id].bets))
+                [] => true
+                _  => false
+        require(result, "SESSION_BET_ALREADY_PRESENT")
+
+    private function is_player_betted(bet: bet) : bool =
+        bet.player_address == Call.caller
+
+    private function filter(f : ('a) => bool, l : list('a)) = filter'(f, l, [])
+    private function filter'(f : ('a) => bool, l : list('a), acc : list('a)) =
+        switch(l)
+            [] => acc
+            e :: l' =>
+                if(f(e))
+                    filter'(f, l', e :: acc)
+                else
+                    filter'(f, l', acc)
