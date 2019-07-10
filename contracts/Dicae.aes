@@ -105,7 +105,7 @@ contract Dicae =
             e :: l' => f(e) :: map_function(f, l')	
 
     private function random() : int = 
-        Bytes.to_int(Crypto.sha3(random_hash(5, state.system.null_bytes))) mod 6
+        state.system.valid_bets[Bytes.to_int(Crypto.sha3(random_hash(5, state.system.null_bytes))) mod 6]
 
     private function random_hash(blocks: int, result: bytes(32)) : bytes(32) =
         switch(blocks)
