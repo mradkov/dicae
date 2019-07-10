@@ -82,9 +82,7 @@ contract Dicae =
         if (bet.number == random_winning_number)
             put(state{
                 players[bet.player_address].pending_balance = state.players[bet.player_address].pending_balance + (state.bet_price * state.bet_winning_coeficient) })
-            true
-        else
-            false
+        (bet.number == random_winning_number)
 
     private function map_function(f : 'a => 'b, l : list('a)) : list('b) =
         switch(l)
