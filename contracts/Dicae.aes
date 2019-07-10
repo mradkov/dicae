@@ -40,7 +40,10 @@ contract Dicae =
                    , bet_winning_coeficient: int
                    , session_id: int
                    , players: map(address, player)
-                   , null_bytes: bytes(32) }
+                   , system: system }
+    
+    record system = { null_bytes: bytes(32)
+                    , valid_bets: map(int, int) }
     
     stateful entrypoint init() : state = { bet_id = 0
                                       , session_id = 0
@@ -48,9 +51,11 @@ contract Dicae =
                                       , bet_winning_coeficient = 5
                                       , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
                                       , players = {}
-                                      , null_bytes = #000000000000000000000000000000000000000000000000000000000000000 }
+                                      , system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000
+                                                 , valid_bets = { [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6 } } }
 
     stateful entrypoint bet(number: int) =
+        is_bet_valid(number)
         reset_session_if_needed()
         is_amount_enough()
         is_player()
@@ -86,7 +91,7 @@ contract Dicae =
             e :: l' => f(e) :: map_function(f, l')	
 
     private function random() : int = 
-        Bytes.to_int(Crypto.sha3(random_hash(5, state.null_bytes))) mod 6
+        Bytes.to_int(Crypto.sha3(random_hash(5, state.system.null_bytes))) mod 6
 
     private function random_hash(blocks: int, result: bytes(32)) : bytes(32) =
         switch(blocks)
@@ -95,7 +100,7 @@ contract Dicae =
         
     private function eval(x: option(bytes(32))) : bytes(32) =
         switch(x)
-            None => state.null_bytes
+            None => state.system.null_bytes
             Some(x) => x
 
     private stateful function reset_session() =
@@ -107,17 +112,15 @@ contract Dicae =
             reset_session()
 
     private stateful function is_player() =
-        let player_found = lookupByAddress(Call.origin, state.players, {total_bets = 0, pending_balance = 0})
+        let player_found = Map.lookup_default(Call.origin, state.players, {total_bets = 0, pending_balance = 0})
         if (player_found.total_bets == 0)
             put(state{ players[Call.origin] = {total_bets = 0, pending_balance = 0} })
-
-    private function lookupByAddress(k : address, m, v) =
-        switch(Map.lookup(k,m))
-            None => v
-            Some(x) => x
 
     private function is_amount_enough() =
         require(Call.value < state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
     
     private function is_player_balance_positive() =
         require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
+    
+    private function is_bet_valid(number: int) =
+        require(Map.member(number, state.system.valid_bets), "INVALID_BET_NUMBER")
