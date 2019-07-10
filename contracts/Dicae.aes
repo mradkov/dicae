@@ -74,7 +74,7 @@ contract Dicae =
     private function calculate_random(height: int, count: int, rand: int) : int =
       switch(count)
             0 => rand
-            _ => calculate_random(height - 1, count - 1, Chain.block_hash(height) mod 6)
+            _ => calculate_random(height - 1, count - 1, String.sha3(String.concat(Int.to_str(rand) + Int.to_str(Chain.block_hash(height))))
 
     private stateful function reset_session() =
         calculate_session_results()
