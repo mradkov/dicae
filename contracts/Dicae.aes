@@ -64,17 +64,15 @@ contract Dicae =
     entrypoint get_random() : int = random()
 
     stateful entrypoint withdraw() =
-        if(state.players[Call.caller].pending_balance > 0)
-            let balance_for_withdraw = state.players[Call.caller].pending_balance
-            put(state{
-                players[Call.caller].pending_balance = 0 })
-            Chain.spend(Call.caller, balance_for_withdraw)
+        is_player_balance_positive()
+        let balance_for_withdraw = state.players[Call.caller].pending_balance
+        put(state{
+            players[Call.caller].pending_balance = 0 })
+        Chain.spend(Call.caller, balance_for_withdraw)
 
     // Private and helper functions
     private stateful function calculate_session_results() = 
-        let random_winning_number = random()
-        let bets : list(bet) = state.sessions[state.session_id].bets
-        map_function(filter_winning(random_winning_number), bets)
+        map_function(filter_winning(random()), state.sessions[state.session_id].bets)
 
     private stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
         if (bet.number == random_winning_number)
@@ -120,5 +118,7 @@ contract Dicae =
             Some(x) => x
 
     private function is_amount_enough() =
-        if (Call.value < state.bet_price)
-            abort("Insufficient AE amount")
+        require(Call.value < state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
+    
+    private function is_player_balance_positive() =
+        require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
