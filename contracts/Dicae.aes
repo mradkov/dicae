@@ -17,9 +17,21 @@
 // THIS IS NOT SECURITY AUDITED
 // DO NEVER USE THIS WITHOUT SECURITY AUDIT FIRST
 //
-// Dicæ is a betting game on top of Æternity blockchain, implemented with Sophia ML  
 
 
+/*
+ * **DICAE** is a betting game ran on top of Aeternity blockchain,
+ * this particilar implementation is done with Sophia ML
+ * 
+ * The game allows a player to place a bet on certain number
+ * between 1 and 6 once in a betting session.
+ * When the betting session is closed and bet results are calculated
+ * the players who correctly guessed the number that the dice smart contract
+ * rolled will receive AE tokens distributed as winning award. Funds from
+ * bets of those players who did not succeeded guessing the correct
+ * dice result will be stored in the smart contract for future
+ * award distribution payments. 
+ */
 contract Dicae =
 
     record state = { sessions: map(int, session)
