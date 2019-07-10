@@ -54,14 +54,12 @@ contract Dicae =
         reset_session_if_needed()
         is_amount_enough()
         is_player()
-        let bet = {
-            id = state.bet_id +1, 
-            number = number,
-            player_address = Call.caller}
-        put(state{
-            bet_id = bet.id,
-            sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets,
-            players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
+        let bet = { id = state.bet_id +1
+                  , number = number
+                  , player_address = Call.caller }
+        put(state{ bet_id = bet.id
+                 , sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets
+                 , players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
 
     entrypoint get_random() : int = random()
 
