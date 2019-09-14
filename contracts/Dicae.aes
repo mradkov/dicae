@@ -37,6 +37,7 @@ contract Dicae =
     record state = { sessions: map(int, session)
                    , bet_price: int
                    , bet_id: int
+                   , bet_session_duration: int
                    , bet_winning_coeficient: int
                    , session_id: int
                    , players: map(address, player)
@@ -60,6 +61,7 @@ contract Dicae =
     stateful entrypoint init() : state = { bet_id = 0
                                       , session_id = 0
                                       , bet_price = 1
+                                      , bet_session_duration = 5
                                       , bet_winning_coeficient = 5
                                       , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
                                       , players = {}
@@ -122,7 +124,7 @@ contract Dicae =
         put(state{ session_id = state.session_id + 1})
 
     private stateful function reset_session_if_needed() =
-        if (Chain.block_height >= state.sessions[state.session_id].block_id + 5)
+        if (Chain.block_height >= state.sessions[state.session_id].block_id + state.bet_session_duration)
             reset_session()
 
     private stateful function is_player() =
