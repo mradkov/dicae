@@ -61,7 +61,9 @@ contract Dicae =
 
   record system = 
     { null_bytes: bytes(32)
-    , valid_bets: map(int, int) }
+    , valid_bets: map(int, int)
+    , fee: int
+    , collected_fees: int }
     
   stateful entrypoint init() : state = { bet_id = 0
                                     , session_id = 0
@@ -71,7 +73,9 @@ contract Dicae =
                                     , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
                                     , players = {}
                                     , system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000
-                                                , valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 } } }
+                                                , valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 } 
+                                                , fee = 5 // percent
+                                                , collected_fees = 0 } }
 
   entrypoint get_session_id() : int = state.session_id
   entrypoint get_session_by_id(session_id: int) : session = state.sessions[session_id]
@@ -97,7 +101,10 @@ contract Dicae =
 
   stateful entrypoint withdraw() : () =
     is_player_balance_positive()
-    let balance_for_withdraw = state.players[Call.caller].pending_balance
+    let balance_for_withdraw_before_fee = state.players[Call.caller].pending_balance
+    let fee = balance_for_withdraw_before_fee / 100 * state.system.fee
+    let balance_for_withdraw = balance_for_withdraw_before_fee - fee
+    put(state{ system.collected_fees = state.system.collected_fees + fee })
     put(state{ players[Call.caller].pending_balance = 0 })
     Chain.spend(Call.caller, balance_for_withdraw)
 
