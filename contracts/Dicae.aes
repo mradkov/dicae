@@ -52,8 +52,10 @@ contract Dicae =
   record session = 
     { session_id: int
     , block_id: int
+    , block_end: int
     , bets: list(bet)
-    , calculated: bool }
+    , calculated: bool
+    , winning_number: int }
 
   record player = 
     { total_bets: int
@@ -65,21 +67,25 @@ contract Dicae =
     , fee: int
     , collected_fees: int }
     
-  stateful entrypoint init() : state = { bet_id = 0
-                                    , session_id = 0
-                                    , bet_price = 1000000000000000000
-                                    , bet_session_duration = 5
-                                    , bet_winning_coeficient = 5
-                                    , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
-                                    , players = {}
-                                    , system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000
-                                                , valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 } 
-                                                , fee = 5 // percent
-                                                , collected_fees = 0 } }
+  stateful entrypoint init() : state = 
+    let bet_session_duration = 5
+    { bet_id = 0,
+      session_id = 0,
+      bet_price = 1000000000000000000,
+      bet_session_duration = bet_session_duration,
+      bet_winning_coeficient = 5,
+      sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1, block_end = Chain.block_height + bet_session_duration,  bets = [], calculated = false, winning_number = 0}},
+      players = {},
+      system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
+      valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 },
+      fee = 5, // percent
+      collected_fees = 0 } }
 
   entrypoint get_session_id() : int = state.session_id
   entrypoint get_session_by_id(session_id: int) : session = state.sessions[session_id]
+  entrypoint get_current_session() : session = state.sessions[state.session_id]
   entrypoint get_session_duration() : int = state.bet_session_duration
+  entrypoint get_session_winning_number() : int = state.bet_session_duration
   entrypoint get_players() : map(address, player) = state.players
   entrypoint get_player_by_address(player: address) : option(player) = Map.lookup(player, state.players)
   entrypoint get_bet_price() : int = state.bet_price
@@ -110,7 +116,9 @@ contract Dicae =
 
     // PRIVATE FUNCTIONS AND ACCESS MODIFIERS
   stateful function calculate_session_results() = 
-    map_function(filter_winning(random()), state.sessions[state.session_id].bets)
+    let winning_number = random()
+    map_function(filter_winning(winning_number), state.sessions[state.session_id].bets)
+    put(state{ sessions[state.session_id].winning_number = winning_number })
 
   stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
     if (bet.number == random_winning_number)
