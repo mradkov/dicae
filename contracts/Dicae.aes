@@ -172,8 +172,8 @@ contract Dicae =
     calculate_session_results()
     put(state{ session_id = state.session_id + 1})
 
-  stateful function reset_session_if_needed() =
-    if (Chain.block_height >= state.sessions[state.session_id].block_id + state.bet_session_duration)
+  stateful function reset_session_if_needed() : () =
+    if (Chain.block_height >= state.sessions[state.session_id].block_end)
       reset_session()
 
   stateful function is_player() : () =
