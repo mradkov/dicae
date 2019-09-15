@@ -1,1 +1,1 @@
-{"data":{"0":{"actions":[]}}}
+{"data":{"0":{"actions":[]},"1":{"actions":[]},"2":{"actions":[{"eventTimestamp":1568549361531,"deployerType":"Deployer","nameOrLabel":"Dicae","transactionHash":"th_ztugn3eGmDoRXjYGpYiSpdLoj3UyUPw7GBcifESYboRBH9YtA","status":true,"gasPrice":1000000000,"gasUsed":12885,"result":"ct_2w8DSHK5P9sT4TL3c1pdWnqinyLCsXTXi9FxkM6emTNj6m1BFN","networkId":"ae_uat","publicKey":"ak_Eekg8pJGGjUcbBbXb5niB7TrZkSHVM88N31fRpngpHvHk7C15"}]}}}
