@@ -42,7 +42,8 @@ contract Dicae =
     , bet_winning_coeficient: int
     , session_id: int
     , players: map(address, player)
-    , system: system }
+    , system: system
+    , owner: address }
   
   record bet = 
     { id: int
@@ -79,7 +80,8 @@ contract Dicae =
       system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
       valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 },
       fee = 5, // percent
-      collected_fees = 0 } }
+      collected_fees = 0 },
+      owner = Call.caller }
 
   entrypoint get_session_id() : int = state.session_id
   entrypoint get_session_by_id(session_id: int) : session = state.sessions[session_id]
@@ -113,6 +115,11 @@ contract Dicae =
     put(state{ system.collected_fees = state.system.collected_fees + fee })
     put(state{ players[Call.caller].pending_balance = 0 })
     Chain.spend(Call.caller, balance_for_withdraw)
+
+  stateful entrypoint withdraw_fee() : () =
+    only_owner()
+    Chain.spend(state.owner, state.system.collected_fees)
+    put(state{ system.collected_fees = 0 })
 
     // PRIVATE FUNCTIONS AND ACCESS MODIFIERS
   stateful function calculate_session_results() = 
@@ -186,3 +193,5 @@ contract Dicae =
           filter'(f, l', e :: acc)
         else
           filter'(f, l', acc)
+
+  function only_owner() = require(Call.caller == state.owner, "UNAUTHORIZED")
