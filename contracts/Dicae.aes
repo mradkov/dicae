@@ -69,7 +69,7 @@ contract Dicae =
     , collected_fees: int }
     
   stateful entrypoint init() : state = 
-    let bet_session_duration = 5
+    let bet_session_duration = 2 // blocks
     { bet_id = 0,
       session_id = 0,
       bet_price = 1000000000000000000,
@@ -84,7 +84,13 @@ contract Dicae =
           winning_number = 7 }},
       players = {},
       system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
-      valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 },
+      valid_bets = {
+        [1] = 1,
+        [2] = 2,
+        [3] = 3,
+        [4] = 4,
+        [5] = 5,
+        [6] = 6 },
       fee = 5, // percent
       collected_fees = 0 },
       owner = Call.caller }
@@ -128,8 +134,8 @@ contract Dicae =
     put(state{ system.collected_fees = 0 })
 
     // PRIVATE FUNCTIONS AND ACCESS MODIFIERS
-  stateful function calculate_session_results() = 
-    let winning_number = random()
+  stateful function calculate_session_results() : () = 
+    let winning_number : int = random()
     map_function(filter_winning(winning_number), state.sessions[state.session_id].bets)
     put(state{ sessions[state.session_id].winning_number = winning_number })
 
@@ -143,10 +149,14 @@ contract Dicae =
       [] => []
       e :: l' => f(e) :: map_function(f, l')	
 
-  function random() : int = 
-    state.system.valid_bets[
+  function random() : int =
+    let random_number : int = (
       Bytes.to_int(
-        Crypto.sha3(random_hash(5, state.system.null_bytes))) mod 6]
+        Crypto.sha3(
+          random_hash(5, state.system.null_bytes)
+        )
+      ) mod 6) + 1
+    random_number
 
   function random_hash(blocks: int, result: bytes(32)) : bytes(32) =
     switch(blocks)
@@ -158,7 +168,7 @@ contract Dicae =
       None => state.system.null_bytes
       Some(x) => x
 
-  stateful function reset_session() =
+  stateful function reset_session() : () =
     calculate_session_results()
     put(state{ session_id = state.session_id + 1})
 
@@ -166,21 +176,21 @@ contract Dicae =
     if (Chain.block_height >= state.sessions[state.session_id].block_id + state.bet_session_duration)
       reset_session()
 
-  stateful function is_player() =
+  stateful function is_player() : () =
     let player_found = Map.lookup_default(Call.origin, state.players, {total_bets = 0, pending_balance = 0})
     if (player_found.total_bets == 0)
       put(state{ players[Call.origin] = {total_bets = 0, pending_balance = 0} })
 
-  function is_amount_enough() =
+  function is_amount_enough() : () =
     require(Call.value == state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
     
-  function is_player_balance_positive() =
+  function is_player_balance_positive() : () =
     require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
     
-  function is_bet_valid(number: int) =
+  function is_bet_valid(number: int) : () =
     require(Map.member(number, state.system.valid_bets), "INVALID_BET_NUMBER")
 
-  function is_player_session_bet_allowed() =
+  function is_player_session_bet_allowed() : () =
     let result =
       switch(filter((bet) => (is_player_betted(bet)), state.sessions[state.session_id].bets))
         [] => true
@@ -200,4 +210,4 @@ contract Dicae =
         else
           filter'(f, l', acc)
 
-  function only_owner() = require(Call.caller == state.owner, "UNAUTHORIZED")
+  function only_owner() : () = require(Call.caller == state.owner, "UNAUTHORIZED")

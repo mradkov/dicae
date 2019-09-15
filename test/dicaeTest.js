@@ -63,14 +63,20 @@ describe('Dicae Contract', () => {
         assert.equal(init.result.returnType, 'ok');
     });
     
-    it('should place bet correctly', async () => {
-        let number = 5;
-        const result = await contractInstance.methods.bet(number);
+    it('should fail for invalid number bet', async () => {
+        let number = 0;
+        const result = await contractInstance.methods.bet(number, {amount: 1000000000000000000}).catch(e => e.decodedError);
+        assert.ok(result.includes("INVALID_BET_NUMBER"), "It doesnt bet properly");
+    })
+
+    it('should place bet correctly for number 2', async () => {
+        let number = 2;
+        const result = await contractInstance.methods.bet(number, {amount: 1000000000000000000});
         assert.ok(result.decodedResult, "It doesnt bet properly");
     })
     
     it('should return random number between 1 and 6', async () => {
-        let possibleOutputs = [0,1,2,3,4,5];
+        let possibleOutputs = [1,2,3,4,5,6];
         const result = await contractInstance.methods.get_random();
         assert.equal(possibleOutputs.indexOf(result.decodedResult) > -1, true, "It doesnt return random number between 1 and 6");
     })
