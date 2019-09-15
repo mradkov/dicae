@@ -66,12 +66,21 @@ contract Dicae =
   stateful entrypoint init() : state = { bet_id = 0
                                     , session_id = 0
                                     , bet_price = 1
-                                    , bet_session_duration = 50
+                                    , bet_session_duration = 5
                                     , bet_winning_coeficient = 5
                                     , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
                                     , players = {}
                                     , system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000
                                                 , valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 } } }
+
+  entrypoint get_session_id() : int = state.session_id
+  entrypoint get_session_by_id(session_id: int) : session = state.sessions[session_id]
+  entrypoint get_session_duration() : int = state.bet_session_duration
+  entrypoint get_players() : map(address, player) = state.players
+  entrypoint get_player_by_address(player: address) : option(player) = Map.lookup(player, state.players)
+  entrypoint get_bet_price() : int = state.bet_price
+  entrypoint get_bets_for_session(session_id : int) : list(bet) = state.sessions[session_id].bets 
+  entrypoint get_random() : int = random()
 
   stateful entrypoint bet(number: int) : () =
     is_bet_valid(number)
@@ -85,8 +94,6 @@ contract Dicae =
     put(state{ bet_id = bet.id })
     put(state{ sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets })
     put(state{ players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
-
-  entrypoint get_random() : int = random()
 
   stateful entrypoint withdraw() : () =
     is_player_balance_positive()
