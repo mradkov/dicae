@@ -75,7 +75,13 @@ contract Dicae =
       bet_price = 1000000000000000000,
       bet_session_duration = bet_session_duration,
       bet_winning_coeficient = 5,
-      sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1, block_end = Chain.block_height + bet_session_duration,  bets = [], calculated = false, winning_number = 0}},
+      sessions = {
+        [0] = { session_id = 0,
+          block_id = Chain.block_height -1,
+          block_end = Chain.block_height + bet_session_duration,
+          bets = [],
+          calculated = false,
+          winning_number = 7 }},
       players = {},
       system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
       valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 },
@@ -166,7 +172,7 @@ contract Dicae =
       put(state{ players[Call.origin] = {total_bets = 0, pending_balance = 0} })
 
   function is_amount_enough() =
-    require(Call.value < state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
+    require(Call.value == state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
     
   function is_player_balance_positive() =
     require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
