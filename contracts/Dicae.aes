@@ -61,7 +61,7 @@ contract Dicae =
     stateful entrypoint init() : state = { bet_id = 0
                                       , session_id = 0
                                       , bet_price = 1
-                                      , bet_session_duration = 5
+                                      , bet_session_duration = 50
                                       , bet_winning_coeficient = 5
                                       , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
                                       , players = {}
