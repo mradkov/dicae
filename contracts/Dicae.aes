@@ -66,9 +66,9 @@ contract Dicae =
                                       , sessions = {[0] = {session_id = 0, block_id = Chain.block_height -1,  bets = [], calculated = false}}
                                       , players = {}
                                       , system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000
-                                                 , valid_bets = { [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 5, [6] = 6 } } }
+                                                 , valid_bets = { [0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6 } } }
 
-    stateful entrypoint bet(number: int) =
+    stateful entrypoint bet(number: int) : () =
         is_bet_valid(number)
         is_player_session_bet_allowed()
         reset_session_if_needed()
@@ -107,7 +107,9 @@ contract Dicae =
             e :: l' => f(e) :: map_function(f, l')	
 
     function random() : int = 
-        state.system.valid_bets[Bytes.to_int(Crypto.sha3(random_hash(5, state.system.null_bytes))) mod 6]
+        state.system.valid_bets[
+            Bytes.to_int(
+                Crypto.sha3(random_hash(5, state.system.null_bytes))) mod 6]
 
     function random_hash(blocks: int, result: bytes(32)) : bytes(32) =
         switch(blocks)
