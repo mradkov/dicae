@@ -170,7 +170,14 @@ contract Dicae =
 
   stateful function reset_session() : () =
     calculate_session_results()
-    put(state{ session_id = state.session_id + 1})
+    let new_session_id = state.session_id + 1
+    put(state{ session_id = new_session_id })
+    put(state{ sessions[new_session_id] = { session_id = new_session_id,
+                                            block_id = state.sessions[state.session_id].block_end + 1,
+                                            block_end = Chain.block_height + state.bet_session_duration,
+                                            bets = [],
+                                            calculated = false,
+                                            winning_number = 7 } })
 
   stateful function reset_session_if_needed() : () =
     if (Chain.block_height >= state.sessions[state.session_id].block_end)
