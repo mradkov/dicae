@@ -109,14 +109,15 @@ contract Dicae =
 
   stateful entrypoint bet(number: int) : () =
     is_bet_valid(number)
-    is_player_session_bet_allowed()
     reset_session_if_needed()
+    is_player_session_bet_allowed()
     is_amount_enough()
     is_player()
-    let bet = { id = state.bet_id +1
+    let new_bet_id = state.bet_id + 1
+    let bet = { id = new_bet_id
               , number = number
               , player_address = Call.caller }
-    put(state{ bet_id = bet.id })
+    put(state{ bet_id = new_bet_id })
     put(state{ sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets })
     put(state{ players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
 
@@ -179,7 +180,7 @@ contract Dicae =
     let new_session_id = state.session_id + 1
     put(state{ session_id = new_session_id })
     put(state{ sessions[new_session_id] = { session_id = new_session_id,
-                                            block_id = state.sessions[state.session_id].block_end + 1,
+                                            block_id = Chain.block_height,
                                             block_end = Chain.block_height + state.bet_session_duration,
                                             bets = [],
                                             calculated = false,

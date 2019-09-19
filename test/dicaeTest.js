@@ -81,4 +81,9 @@ describe('Dicae Contract', () => {
         assert.equal(possibleOutputs.indexOf(result.decodedResult) > -1, true, "It doesnt return random number between 1 and 6");
     })
 
+    it('should get session correctly', async () => {
+        const result = await contractInstance.methods.calculate_winners();
+        assert.ok(result.decodedResult, "The session calculation is failing.")
+    })
+
 })
