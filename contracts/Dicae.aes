@@ -56,7 +56,7 @@ contract Dicae =
     , block_end: int
     , bets: list(bet)
     , calculated: bool
-    , winning_number: int }
+    , winning_number: option(int) }
 
   record player = 
     { total_bets: int
@@ -70,29 +70,30 @@ contract Dicae =
     
   stateful entrypoint init() : state = 
     let bet_session_duration = 2 // blocks
+    let session_id = 0 // initial session id
     { bet_id = 0,
-      session_id = 0,
+      session_id = session_id,
       bet_price = 1000000000000000000,
       bet_session_duration = bet_session_duration,
       bet_winning_coeficient = 5,
       sessions = {
-        [0] = { session_id = 0,
-          block_id = Chain.block_height -1,
-          block_end = Chain.block_height + bet_session_duration,
-          bets = [],
-          calculated = false,
-          winning_number = 7 }},
+        [0] = { session_id = session_id,
+                block_id = Chain.block_height - 1,
+                block_end = Chain.block_height + bet_session_duration,
+                bets = [],
+                calculated = false,
+                winning_number = None }},
       players = {},
       system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
-      valid_bets = {
-        [1] = 1,
-        [2] = 2,
-        [3] = 3,
-        [4] = 4,
-        [5] = 5,
-        [6] = 6 },
-      fee = 5, // percent
-      collected_fees = 0 },
+                valid_bets = {
+                  [1] = 1,
+                  [2] = 2,
+                  [3] = 3,
+                  [4] = 4,
+                  [5] = 5,
+                  [6] = 6 },
+                fee = 5, // percent
+                collected_fees = 0 },
       owner = Call.caller }
 
   entrypoint get_session_id() : int = state.session_id
@@ -137,7 +138,7 @@ contract Dicae =
   stateful function calculate_session_results() : () = 
     let winning_number : int = random()
     map_function(filter_winning(winning_number), state.sessions[state.session_id].bets)
-    put(state{ sessions[state.session_id].winning_number = winning_number })
+    put(state{ sessions[state.session_id].winning_number = Some(winning_number) })
 
   stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
     if (bet.number == random_winning_number)
@@ -177,7 +178,7 @@ contract Dicae =
                                             block_end = Chain.block_height + state.bet_session_duration,
                                             bets = [],
                                             calculated = false,
-                                            winning_number = 7 } })
+                                            winning_number = None } })
 
   stateful function reset_session_if_needed() : () =
     if (Chain.block_height >= state.sessions[state.session_id].block_end)
