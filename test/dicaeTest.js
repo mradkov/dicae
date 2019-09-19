@@ -71,7 +71,7 @@ describe('Dicae Contract', () => {
 
     it('should place bet correctly for number 2', async () => {
         let number = 2;
-        const result = await contractInstance.methods.bet(number, {amount: 1000000000000000000}).catch(e => e.decodedError);
+        const result = await contractInstance.methods.bet(number, {amount: 1000000000000000000});
         assert.ok(result.decodedResult, "It doesnt bet properly");
     })
     
