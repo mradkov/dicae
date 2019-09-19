@@ -120,6 +120,11 @@ contract Dicae =
     put(state{ sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets })
     put(state{ players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
 
+  stateful entrypoint calculate_winners() : session =
+    let current_session_id = state.session_id
+    reset_session_if_needed()
+    state.sessions[current_session_id]
+
   stateful entrypoint withdraw() : () =
     is_player_balance_positive()
     let balance_for_withdraw_before_fee = state.players[Call.caller].pending_balance
