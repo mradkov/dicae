@@ -64,7 +64,6 @@ contract Dicae =
 
   record system = 
     { null_bytes: bytes(32)
-    , valid_bets: map(int, int)
     , fee: int
     , collected_fees: int }
     
@@ -79,13 +78,6 @@ contract Dicae =
       sessions = {},
       players = {},
       system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
-                valid_bets = {
-                  [1] = 1,
-                  [2] = 2,
-                  [3] = 3,
-                  [4] = 4,
-                  [5] = 5,
-                  [6] = 6 },
                 fee = 5, // percent
                 collected_fees = 0 },
       owner = Call.caller }
@@ -202,7 +194,7 @@ contract Dicae =
     require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
     
   function is_bet_valid(number: int) : () =
-    require(Map.member(number, state.system.valid_bets), "INVALID_BET_NUMBER")
+    require((number >= 1 && number =< 6), "INVALID_BET_NUMBER")
 
   function is_player_session_bet_allowed() : () =
     let result =
