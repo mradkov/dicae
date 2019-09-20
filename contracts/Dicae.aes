@@ -76,13 +76,7 @@ contract Dicae =
       bet_price = 1000000000000000000,
       bet_session_duration = bet_session_duration,
       bet_winning_coeficient = 5,
-      sessions = {
-        [0] = { session_id = session_id,
-                block_id = Chain.block_height - 1,
-                block_end = Chain.block_height + bet_session_duration,
-                bets = [],
-                calculated = false,
-                winning_number = None }},
+      sessions = {},
       players = {},
       system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
                 valid_bets = {
