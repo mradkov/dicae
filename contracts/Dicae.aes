@@ -36,12 +36,11 @@ contract Dicae =
 
   record state = 
     { sessions: map(int, session)
-    , bet_price: int
-    , bet_id: int
-    , bet_session_duration: int
-    , bet_winning_coeficient: int
-    , session_id: int
     , players: map(address, player)
+    , settings: settings
+    , bet_id: int
+    , session_id: int
+    , collected_fees: int
     , system: system
     , owner: address }
   
@@ -62,34 +61,37 @@ contract Dicae =
     { total_bets: int
     , pending_balance: int }
 
+  record settings =
+    { fee: int
+    , bet_price: int
+    , bet_session_duration: int
+    , bet_winning_coeficient: int } // not active yet
+
   record system = 
-    { null_bytes: bytes(32)
-    , fee: int
-    , collected_fees: int }
-    
+    { null_bytes: bytes(32) }    
   stateful entrypoint init() : state = 
     let bet_session_duration = 2 // blocks
     let session_id = 0 // initial session id
-    { bet_id = 0,
-      session_id = session_id,
-      bet_price = 1000000000000000000,
-      bet_session_duration = bet_session_duration,
-      bet_winning_coeficient = 5,
-      sessions = {},
+    { sessions = {},
       players = {},
-      system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
-                fee = 5, // percent
-                collected_fees = 0 },
+      settings = {  fee = 5,
+                    bet_price = 1000000000000000000,
+                    bet_session_duration = bet_session_duration,
+                    bet_winning_coeficient = 5 },
+      collected_fees = 0,
+      bet_id = 0,
+      session_id = session_id,
+      system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000 },
       owner = Call.caller }
 
   entrypoint get_session_id() : int = state.session_id
   entrypoint get_session_by_id(session_id: int) : session = state.sessions[session_id]
   entrypoint get_current_session() : session = state.sessions[state.session_id]
-  entrypoint get_session_duration() : int = state.bet_session_duration
-  entrypoint get_session_winning_number() : int = state.bet_session_duration
+  entrypoint get_session_duration() : int = state.settings.bet_session_duration
+  entrypoint get_session_winning_number(session_id: int) : option(int) = state.sessions[session_id].winning_number
   entrypoint get_players() : map(address, player) = state.players
   entrypoint get_player_by_address(player: address) : option(player) = Map.lookup(player, state.players)
-  entrypoint get_bet_price() : int = state.bet_price
+  entrypoint get_bet_price() : int = state.settings.bet_price
   entrypoint get_bets_for_session(session_id : int) : list(bet) = state.sessions[session_id].bets 
   entrypoint get_random() : int = random()
 
@@ -115,16 +117,16 @@ contract Dicae =
   stateful entrypoint withdraw() : () =
     is_player_balance_positive()
     let balance_for_withdraw_before_fee = state.players[Call.caller].pending_balance
-    let fee = balance_for_withdraw_before_fee / 100 * state.system.fee
+    let fee = balance_for_withdraw_before_fee / 100 * state.settings.fee
     let balance_for_withdraw = balance_for_withdraw_before_fee - fee
-    put(state{ system.collected_fees = state.system.collected_fees + fee })
+    put(state{ collected_fees = state.collected_fees + fee })
     put(state{ players[Call.caller].pending_balance = 0 })
     Chain.spend(Call.caller, balance_for_withdraw)
 
   stateful entrypoint withdraw_fee() : () =
     only_owner()
-    Chain.spend(state.owner, state.system.collected_fees)
-    put(state{ system.collected_fees = 0 })
+    Chain.spend(state.owner, state.collected_fees)
+    put(state{ collected_fees = 0 })
 
     // PRIVATE FUNCTIONS AND ACCESS MODIFIERS
   stateful function calculate_session_results() : () = 
@@ -134,7 +136,7 @@ contract Dicae =
 
   stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
     if (bet.number == random_winning_number)
-      put(state{ players[bet.player_address].pending_balance = state.players[bet.player_address].pending_balance + (state.bet_price * state.bet_winning_coeficient) })
+      put(state{ players[bet.player_address].pending_balance = state.players[bet.player_address].pending_balance + (state.settings.bet_price * state.settings.bet_winning_coeficient) })
     (bet.number == random_winning_number)
 
   function map_function(f : 'a => 'b, l : list('a)) : list('b) =
@@ -170,7 +172,7 @@ contract Dicae =
   stateful function create_new_session(session_id: int) : () =
     put(state{ sessions[session_id] = { session_id = session_id,
                                             block_id = Chain.block_height,
-                                            block_end = Chain.block_height + state.bet_session_duration,
+                                            block_end = Chain.block_height + state.settings.bet_session_duration,
                                             bets = [],
                                             calculated = false,
                                             winning_number = None } })
@@ -188,7 +190,7 @@ contract Dicae =
       put(state{ players[Call.origin] = {total_bets = 0, pending_balance = 0} })
 
   function is_amount_enough() : () =
-    require(Call.value == state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
+    require(Call.value == state.settings.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
     
   function is_player_balance_positive() : () =
     require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
