@@ -18,6 +18,20 @@
 // DO NEVER USE THIS WITHOUT SECURITY AUDIT FIRST
 //
 
+namespace List =
+  function foldr(f : (('a, 'b) => 'b), z: 'b, l : list('a)) : 'b =
+    switch(l)
+      [] => z
+      e :: l' => f(e, foldr(f, z, l'))
+
+  function find(l : list('a), f: 'a => bool) : option('a) =
+    switch(l)
+      [] => None
+      e :: l' =>
+        if(f(e))
+          Some(e)
+        else
+          find(l', f)
 
 /*
  * **DICAE** is a betting game ran on top of Aeternity blockchain,
@@ -32,122 +46,100 @@
  * dice result will be stored in the smart contract for future
  * award distribution payments. 
  */
-payable contract Dicae =
+contract Dicae =
 
   record state = 
     { sessions: map(int, session)
-    , bet_price: int
-    , bet_id: int
-    , bet_session_duration: int
-    , bet_winning_coeficient: int
-    , session_id: int
     , players: map(address, player)
+    , settings: settings
+    , session_id: int
+    , collected_fees: int
     , system: system
     , owner: address }
   
-  record bet = 
-    { id: int
-    , number: int
-    , player_address: address }
-
   record session = 
     { session_id: int
     , block_id: int
     , block_end: int
-    , bets: list(bet)
+    , bets: map(int, list(address))
     , calculated: bool
-    , winning_number: int }
+    , winning_number: option(int) }
 
   record player = 
     { total_bets: int
     , pending_balance: int }
 
+  record settings =
+    { fee: int
+    , bet_price: int
+    , bet_session_duration: int
+    , bet_winning_coeficient: int } // not active yet
+
   record system = 
-    { null_bytes: bytes(32)
-    , valid_bets: map(int, int)
-    , fee: int
-    , collected_fees: int }
-    
+    { null_bytes: bytes(32) }    
   stateful entrypoint init() : state = 
     let bet_session_duration = 2 // blocks
-    { bet_id = 0,
-      session_id = 0,
-      bet_price = 1000000000000000000,
-      bet_session_duration = bet_session_duration,
-      bet_winning_coeficient = 5,
-      sessions = {
-        [0] = { session_id = 0,
-          block_id = Chain.block_height -1,
-          block_end = Chain.block_height + bet_session_duration,
-          bets = [],
-          calculated = false,
-          winning_number = 7 }},
+    let session_id = 0 // initial session id
+    { sessions = {},
       players = {},
-      system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000,
-      valid_bets = {
-        [1] = 1,
-        [2] = 2,
-        [3] = 3,
-        [4] = 4,
-        [5] = 5,
-        [6] = 6 },
-      fee = 5, // percent
-      collected_fees = 0 },
+      settings = {  fee = 5,
+                    bet_price = 1000000000000000000,
+                    bet_session_duration = bet_session_duration,
+                    bet_winning_coeficient = 5 },
+      collected_fees = 0,
+      session_id = session_id,
+      system = { null_bytes = #000000000000000000000000000000000000000000000000000000000000000 },
       owner = Call.caller }
 
   entrypoint get_session_id() : int = state.session_id
   entrypoint get_session_by_id(session_id: int) : session = state.sessions[session_id]
   entrypoint get_current_session() : session = state.sessions[state.session_id]
-  entrypoint get_session_duration() : int = state.bet_session_duration
-  entrypoint get_session_winning_number() : int = state.bet_session_duration
+  entrypoint get_session_duration() : int = state.settings.bet_session_duration
+  entrypoint get_session_winning_number(session_id: int) : option(int) = state.sessions[session_id].winning_number
   entrypoint get_players() : map(address, player) = state.players
   entrypoint get_player_by_address(player: address) : option(player) = Map.lookup(player, state.players)
-  entrypoint get_bet_price() : int = state.bet_price
-  entrypoint get_bets_for_session(session_id : int) : list(bet) = state.sessions[session_id].bets 
+  entrypoint get_bet_price() : int = state.settings.bet_price
+  entrypoint get_bets_for_session(session_id : int) : map(int, list(address)) = state.sessions[session_id].bets 
   entrypoint get_random() : int = random()
 
-  payable stateful entrypoint bet(number: int) : unit =
+  stateful entrypoint bet(number: int) : unit =
     is_bet_valid(number)
-    is_player_session_bet_allowed()
     reset_session_if_needed()
     is_amount_enough()
     is_player()
-    let bet = { id = state.bet_id +1
-              , number = number
-              , player_address = Call.caller }
-    put(state{ bet_id = bet.id })
-    put(state{ sessions[state.session_id].bets = bet :: state.sessions[state.session_id].bets })
+    put(state{ sessions[state.session_id].bets[number] = Call.caller :: state.sessions[state.session_id].bets[number] })
     put(state{ players[Call.caller].total_bets = state.players[Call.caller].total_bets + 1 })
+
+  stateful entrypoint calculate_winners() : session =
+    let current_session_id = state.session_id
+    reset_session_if_needed()
+    state.sessions[current_session_id]
 
   stateful entrypoint withdraw() : unit =
     is_player_balance_positive()
     let balance_for_withdraw_before_fee = state.players[Call.caller].pending_balance
-    let fee = balance_for_withdraw_before_fee / 100 * state.system.fee
+    let fee = balance_for_withdraw_before_fee / 100 * state.settings.fee
     let balance_for_withdraw = balance_for_withdraw_before_fee - fee
-    put(state{ system.collected_fees = state.system.collected_fees + fee })
+    put(state{ collected_fees = state.collected_fees + fee })
     put(state{ players[Call.caller].pending_balance = 0 })
     Chain.spend(Call.caller, balance_for_withdraw)
 
   stateful entrypoint withdraw_fee() : unit =
     only_owner()
-    Chain.spend(state.owner, state.system.collected_fees)
-    put(state{ system.collected_fees = 0 })
+    Chain.spend(state.owner, state.collected_fees)
+    put(state{ collected_fees = 0 })
 
     // PRIVATE FUNCTIONS AND ACCESS MODIFIERS
   stateful function calculate_session_results() : unit = 
     let winning_number : int = random()
-    map_function(filter_winning(winning_number), state.sessions[state.session_id].bets)
-    put(state{ sessions[state.session_id].winning_number = winning_number })
+    let winners : list(address) = state.sessions[state.session_id].bets[winning_number]
+    let prize = state.settings.bet_price * state.settings.bet_winning_coeficient
+    let updated_balances = List.foldr(update_balance(prize), state.players, winners)
+    put(state{ players = updated_balances })
+    put(state{ sessions[state.session_id].winning_number = Some(winning_number) })
 
-  stateful function filter_winning(random_winning_number: int) : (bet => bool) = (bet) =>
-    if (bet.number == random_winning_number)
-      put(state{ players[bet.player_address].pending_balance = state.players[bet.player_address].pending_balance + (state.bet_price * state.bet_winning_coeficient) })
-    (bet.number == random_winning_number)
-
-  function map_function(f : 'a => 'b, l : list('a)) : list('b) =
-    switch(l)
-      [] => []
-      e :: l' => f(e) :: map_function(f, l')	
+  stateful function update_balance(amount: int) = (account: address, acc: map(address, player)) =>
+    acc{[account = { pending_balance = 0 }] @ player = player{pending_balance @ b = b + amount}}
 
   function random() : int =
     let random_number : int = (
@@ -170,11 +162,24 @@ payable contract Dicae =
 
   stateful function reset_session() : unit =
     calculate_session_results()
-    put(state{ session_id = state.session_id + 1})
+    let new_session_id = state.session_id + 1
+    put(state{ session_id = new_session_id })
+    create_new_session(new_session_id)
+
+  stateful function create_new_session(session_id: int) : unit =
+    put(state{ sessions[session_id] = { session_id = session_id,
+                                            block_id = Chain.block_height,
+                                            block_end = Chain.block_height + state.settings.bet_session_duration,
+                                            bets = {},
+                                            calculated = false,
+                                            winning_number = None } })
 
   stateful function reset_session_if_needed() : unit =
-    if (Chain.block_height >= state.sessions[state.session_id].block_end)
-      reset_session()
+    switch(Map.size(state.sessions))
+      0 => create_new_session(state.session_id)
+      _ => 
+        if (Chain.block_height >= state.sessions[state.session_id].block_end)
+          reset_session()
 
   stateful function is_player() : unit =
     let player_found = Map.lookup_default(Call.origin, state.players, {total_bets = 0, pending_balance = 0})
@@ -182,23 +187,13 @@ payable contract Dicae =
       put(state{ players[Call.origin] = {total_bets = 0, pending_balance = 0} })
 
   function is_amount_enough() : unit =
-    require(Call.value == state.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
+    require(Call.value == state.settings.bet_price, "INSUFFICIENT_VALUE_PROVIDED")
     
   function is_player_balance_positive() : unit =
     require(state.players[Call.caller].pending_balance > 0, "INSUFFICIENT_BALANCE")
     
   function is_bet_valid(number: int) : unit =
-    require(Map.member(number, state.system.valid_bets), "INVALID_BET_NUMBER")
-
-  function is_player_session_bet_allowed() : unit =
-    let result =
-      switch(filter((bet) => (is_player_betted(bet)), state.sessions[state.session_id].bets))
-        [] => true
-        _  => false
-    require(result, "SESSION_BET_ALREADY_PRESENT")
-
-  function is_player_betted(bet: bet) : bool =
-    bet.player_address == Call.caller
+    require((number >= 1 && number =< 6), "INVALID_BET_NUMBER")
 
   function filter(f : ('a) => bool, l : list('a)) = filter'(f, l, [])
   function filter'(f : ('a) => bool, l : list('a), acc : list('a)) =
